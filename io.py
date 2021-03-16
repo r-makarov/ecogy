@@ -16,13 +16,41 @@ class Probe():
         self.x = df.x.to_numpy()
         self.y = df.y.to_numpy()
         self.channels = df.channel.to_numpy()
-        self.boards = df.board.to_numpy()
-        self.u_boards = np.sort(np.unique(self.boards))
+        
+        
+class LinearProbe(Probe):
+    
+    def __init__(self, df, name='A1x16'):
+        super(LinearProbe, self).__init__(df, name)
+        
+    def show(self):
+    
+        plt.figure(figsize=[3,8])
+        
+        plt.scatter(self.x, self.y, c='r', alpha=0.2, s=50)
+
+        for i in range(len(self.channels)):
+            plt.text(self.x[i], self.y[i], self.channels[i], ha='center', va='center')
+
+      
+        plt.ylim(self.y[-1]-100, 100)
+        plt.xlim(-200, 200)
+        plt.xticks([],[])
+        
+        plt.yticks(ticks=self.y, labels = self.y)
+        
+        plt.title(f'Probe_{self.name}_{np.abs(self.y[1])}um', loc='center')
+        
+        plt.tight_layout()
+        
         
 class FilmProbe(Probe):
     
     def __init__(self, df, name='XA60_FILM'):
         super(FilmProbe, self).__init__(df, name)
+        
+        self.boards = df.board.to_numpy()
+        self.u_boards = np.sort(np.unique(self.boards))
         
     def show(self):
     
