@@ -5,8 +5,9 @@ import neo
 from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
+import copy
 
-# Probes
+#-----------------------------------------------Probes-----------------------------------------------
 
 class Probe():
     
@@ -74,7 +75,7 @@ class FilmProbe(Probe):
         plt.tight_layout()
         
 
-# Reader
+#-----------------------------------------------Reader-----------------------------------------------
 
 class Reader(neo.io.NeuralynxIO):
     
@@ -114,27 +115,9 @@ class Reader(neo.io.NeuralynxIO):
                       self.get_signal_size(b,s)/self.get_sfreq(), 's (', 
                       self.get_signal_size(b,s)/self.get_sfreq()/60, ')min')
                 
-    
-        
-    
-    
-# Raw
-
-def get_time_slice(t_start, t_stop, block_index, seg_index):
-    
-    if t_start is None:
-        t_start = reader.get_signal_t_start(block_index, seg_index)
-    else:
-        t_start = t_start
-        
-    if t_stop is None:
-        t_stop = (reader._sigs_t_stop[seg_index] - reader.global_t_start)
-    else:
-        t_stop = t_stop
-        
-    return (t_start, t_stop)
 
 
+#------------------------------------------------Raw-------------------------------------------------
 
 def get_raw(reader,
             selected_channels,
@@ -149,12 +132,8 @@ def get_raw(reader,
     
     
     reader.select_channels(selected_channels)
-    reader.info()
     
-    time_slice = get_time_slice(t_start,
-                            t_stop, 
-                            block_index, 
-                            seg_index)
+    time_slice = (t_start, t_stop)
     
     seg = reader.read_segment(block_index, 
                           seg_index,
@@ -166,7 +145,73 @@ def get_raw(reader,
                           mne.create_info(reader.df_ch['name'].to_list(), reader.get_sfreq(), ch_types='eeg'))
     
     raw.reorder_channels(selected_channels)
-    
-    
-    
+
     return raw
+
+
+
+#-----------------------------------------------Events-----------------------------------------------
+
+def get_events(reader,
+               block_index = 0, 
+               seg_index = 0, 
+               t_start = None, 
+               t_stop = None):
+    
+    #1. make a copy of the reader and leave only a single channel to speed up the function
+    _reader = copy.deepcopy(reader)
+    _reader.select_channels(_reader.df_ch['name'][0])
+    
+    
+    #2. Get a Segment for a given time slice
+    time_slice = (t_start, t_stop)
+    
+    seg = _reader.read_segment(block_index, 
+                               seg_index,
+                               time_slice=time_slice)
+    
+    #3. Create an DataFrame
+    df_ev = pd.DataFrame(columns=['event_id', 'ttl', 'time', 'ts'])
+
+    #4. For every type of events, for every event put its time in the dataframe
+    
+    for ev_type in seg.events:
+        print(f'{ev_type.name} {len(ev_type.magnitude)}')
+    
+        for e in ev_type.magnitude:
+        
+            idx = len(df_ev.index) #the index of the row where information about the event will be placed
+        
+            
+            df_ev.loc[idx, 'event_id'] = int(ev_type.name[16:18])
+            df_ev.loc[idx, 'ttl'] = int(ev_type.name[23:])
+            df_ev.loc[idx, 'time'] = e                                           #time in seconds
+            df_ev.loc[idx, 'ts'] = np.round(e*_reader.get_sfreq()).astype('int') #convert time to timesteps
+    
+    df_ev.sort_values(by='time', inplace=True)
+    df_ev.reset_index(drop=True, inplace=True)
+
+    return df_ev
+
+
+#-----------------------------------------------Epochs-----------------------------------------------
+
+
+
+
+
+#------------------------------------------------Misc------------------------------------------------
+    
+def get_time_slice(reader, t_start, t_stop, block_index, seg_index):
+    
+    if t_start is None:
+        t_start = reader.get_signal_t_start(block_index, seg_index)
+    else:
+        t_start = t_start
+        
+    if t_stop is None:
+        t_stop = (reader._sigs_t_stop[seg_index] - reader.global_t_start)
+    else:
+        t_stop = t_stop
+        
+    return (t_start, t_stop)
