@@ -130,19 +130,20 @@ def get_raw(reader,
     Returns data from a Reader as a numpy array
     """
     
-    
-    reader.select_channels(selected_channels)
+    #1. make a copy of the reader and select channels for a given probe
+    _reader = copy.deepcopy(reader)
+    _reader.select_channels(selected_channels)
     
     time_slice = (t_start, t_stop)
     
-    seg = reader.read_segment(block_index, 
-                          seg_index,
-                          time_slice=time_slice)
+    seg = _reader.read_segment(block_index, 
+                               seg_index,
+                               time_slice=time_slice)
     
     analogsignal = seg.analogsignals[0]
     
     raw = mne.io.RawArray(analogsignal.T.magnitude, 
-                          mne.create_info(reader.df_ch['name'].to_list(), reader.get_sfreq(), ch_types='eeg'))
+                          mne.create_info(_reader.df_ch['name'].to_list(), _reader.get_sfreq(), ch_types='eeg'))
     
     raw.reorder_channels(selected_channels)
 
@@ -196,7 +197,8 @@ def get_events(reader,
 
 #-----------------------------------------------Epochs-----------------------------------------------
 
-
+def remove_artifact(epochs, fill_at=0.005, fill_with=0):
+    epochs._data[:,:,np.abs(epochs.times) < fill_len] = fill_with
 
 
 
@@ -214,4 +216,7 @@ def get_time_slice(reader, t_start, t_stop, block_index, seg_index):
     else:
         t_stop = t_stop
         
+    print('{:<30}'.format(f'Starts at'), ':', t_start, 's')
+    print('{:<30}'.format(f'Stops at'), ':', t_stop, 's')
+    
     return (t_start, t_stop)
