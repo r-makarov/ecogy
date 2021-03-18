@@ -197,7 +197,52 @@ def get_events(reader,
 
 #-----------------------------------------------Epochs-----------------------------------------------
 
-def remove_artifact(epochs, fill_at=0.005, fill_with=0):
+def get_epochs(reader, 
+               selected_channels, 
+               block_index=0, seg_index=0,
+               tmin=-0.2, tmax=0.5):
+    
+    """
+    Uploades slices of raw data and converts them to epochs one by one,
+    instead of passing the whole raw data array as an input to mne.Epochs()
+    """
+    
+    #1. make a copy of the reader and select channels for a given probe
+    _reader = copy.deepcopy(reader)
+    _reader.select_channels(selected_channels)
+    
+    
+    sfreq = reader.get_sfreq()
+    tmax -= 1/sfreq #to avoide odd-number epoch length
+    
+    #2. convert slices of raw data one by one
+    epochs_list = []
+    for i, ev in tqdm(enumerate(events)):
+        
+        # expand time slice to 0.1 s from both sides to prevent boundary artifacts
+        t_start,t_stop = [ev[0]/sfreq + tmin - 0.1, ev[0]/sfreq + tmax + 0.1] 
+        
+        # get a slice of raw data
+        _raw = get_raw(reader,
+                       selected_channels, 
+                       block_index, seg_index,
+                       t_start, t_stop)
+        
+        # convert the slice to an epoch
+        epoch = mne.Epochs(_raw, 
+                           np.array([np.abs(tmin-0.1)*sfreq,0,0]).astype('int').reshape(1,-1), 
+                           tmin=tmin, 
+                           tmax=tmax,
+                           preload=True)
+        
+        epochs_list.append(epoch)
+        
+    epochs = mne.concatenate_epochs(epochs_list)
+    
+    return epochs
+
+
+def remove_artifact(epochs, fill_len=0.005, fill_with=0):
     epochs._data[:,:,np.abs(epochs.times) < fill_len] = fill_with
 
 
