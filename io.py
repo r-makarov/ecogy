@@ -14,15 +14,25 @@ class Probe():
        def __init__(self, df, name='Probe'):
         
         self.name = name
+        self.df = df
         self.x = df.x.to_numpy()
         self.y = df.y.to_numpy()
         self.channels = df.channel.to_numpy()
+        
+        self.n_rows = np.unique(self.x).shape[0]
+        self.n_cols = np.unique(self.y).shape[0]
+        
+        def save(self, path):
+            assert path[-1] == '/'
+            pd.to_csv(path + name + '.csv')
         
         
 class LinearProbe(Probe):
     
     def __init__(self, df, name='A1x16'):
         super(LinearProbe, self).__init__(df, name)
+        
+        self.inserted_between = []
         
     def show(self):
     
@@ -53,11 +63,17 @@ class FilmProbe(Probe):
         self.boards = df.board.to_numpy()
         self.u_boards = np.sort(np.unique(self.boards))
         
-    def show(self):
+    def show(self, amplitudes=[], ax=None):
     
-        plt.figure(figsize=[7.5,4.5])
         
-        plt.scatter(self.x, self.y, c='r', alpha=0.2, s=50)
+        
+        if ax:
+            ax.clear()
+            plt.sca(ax)
+        else:
+            plt.figure(figsize=[7.5,4.5])
+        
+        plt.plot(self.x, self.y, '.r')
 
         for i in range(len(self.channels)):
             plt.text(self.x[i], self.y[i], self.channels[i], ha='center', va='center')
@@ -71,6 +87,10 @@ class FilmProbe(Probe):
         
         plt.title(f'Probe_{self.name}_{self.u_boards[0]}_{self.u_boards[1]}', loc='left')
         plt.title('{neck:top, face:down}', loc='right')
+        
+        if amplitudes:
+            plt.imshow(amplitudes.reshape(self.n_cols, self.n_rows), extent=[0, self.x.max(), 0, self.y.max()])
+            plt.gca().invert_yaxis()
         
         plt.tight_layout()
         
@@ -199,6 +219,7 @@ def get_events(reader,
 
 def get_epochs(reader, 
                selected_channels, 
+               events,
                block_index=0, seg_index=0,
                tmin=-0.2, tmax=0.5):
     
