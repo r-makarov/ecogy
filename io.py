@@ -11,7 +11,7 @@ import copy
 
 class Probe():
     
-       def __init__(self, df, name='Probe'):
+    def __init__(self, df, name='Probe'):
         
         self.name = name
         self.df = df
@@ -22,9 +22,12 @@ class Probe():
         self.n_rows = np.unique(self.x).shape[0]
         self.n_cols = np.unique(self.y).shape[0]
         
-        def save(self, path):
-            assert path[-1] == '/'
-            pd.to_csv(path + name + '.csv')
+        self.raw = []
+        self.epochs = []
+        
+    def save(self, path):
+        assert path[-1] == '/'
+        pd.to_csv(path + name + '.csv')
         
         
 class LinearProbe(Probe):
@@ -62,6 +65,7 @@ class FilmProbe(Probe):
         
         self.boards = df.board.to_numpy()
         self.u_boards = np.sort(np.unique(self.boards))
+        self.hello = 'Hello'
         
     def show(self, amplitudes=[], ax=None):
     
@@ -76,7 +80,7 @@ class FilmProbe(Probe):
         plt.plot(self.x, self.y, '.r')
 
         for i in range(len(self.channels)):
-            plt.text(self.x[i], self.y[i], self.channels[i], ha='center', va='center')
+            plt.text(self.x[i], self.y[i], self.channels[i], ha='center', va='center', label='channel_label')
 
       
         plt.xlim(-200, 3800)
@@ -89,7 +93,7 @@ class FilmProbe(Probe):
         plt.title('{neck:top, face:down}', loc='right')
         
         if amplitudes:
-            plt.imshow(amplitudes.reshape(self.n_cols, self.n_rows), extent=[0, self.x.max(), 0, self.y.max()])
+            plt.imshow(amplitudes.reshape(self.n_cols, self.n_rows), extent=[0, self.x.max(), 0, self.y.max()], label='map')
             plt.gca().invert_yaxis()
         
         plt.tight_layout()
